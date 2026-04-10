@@ -132,7 +132,10 @@ def formatta_messaggio(txn):
 def main():
     ora_italia = datetime.now(FUSO_ITALIA).strftime("%H:%M")
     print(f"[INFO] Controllo alle {ora_italia} ora italiana")
-
+    if not e_orario_attivo():
+        print(f"[PAUSA] Fuori orario (attivo {ORA_INIZIO}:00 - {ORA_FINE:02d}:00)")
+        return
+    
     ultimo_id = carica_ultima_transazione()
     transazioni = ottieni_transazioni()
 
