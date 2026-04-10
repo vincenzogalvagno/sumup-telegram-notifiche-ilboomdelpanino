@@ -1,0 +1,36 @@
+name: Controlla pagamenti SumUp
+
+on:
+  schedule:
+    # Ogni 5 minuti, 24/7 (lo script controlla internamente se è orario attivo)
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Permette di avviarlo manualmente per test
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout codice
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installa dipendenze
+        run: pip install requests
+
+      - name: Ripristina stato precedente
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: sumup-state
+
+      - name: Controlla nuove transazioni
+        env:
+          SUMUP_API_KEY: ${{ secrets.SUMUP_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python sumup_telegram.py
