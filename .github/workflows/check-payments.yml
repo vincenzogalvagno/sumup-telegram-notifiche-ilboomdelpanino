@@ -2,8 +2,8 @@ name: Controlla pagamenti SumUp
 
 on:
   schedule:
-    # Ogni 5 minuti, 24/7 (lo script controlla internamente se è orario attivo)
-    - cron: '*/5 * * * *'
+    # Ogni 1 minuto, dalle 17:00 alle 3:00 di notte (lo script controlla internamente se è orario attivo)
+    - cron: '*/1 * * * *'
   workflow_dispatch: # Permette di avviarlo manualmente per test
 
 jobs:
