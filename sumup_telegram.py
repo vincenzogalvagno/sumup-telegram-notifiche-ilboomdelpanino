@@ -1,16 +1,17 @@
 """
 Notifiche Pagamenti SumUp → Telegram
-Controlla nuove transazioni SumUp ogni 60 secondi
-e invia notifica su Telegram.
+Versione per GitHub Actions: esegue un singolo controllo e termina.
+Lo stato (ultima transazione vista) è salvato in un file che viene
+persistito tra le esecuzioni tramite GitHub Actions cache.
 
-Attivo dalle 17:00 alle 03:00.
+Attivo dalle 17:00 alle 03:00 ora italiana.
 """
 
 import os
-import time
+import sys
 import json
 import requests
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # Fuso orario italiano (gestisce automaticamente ora legale/solare)
@@ -26,7 +27,7 @@ ORA_INIZIO = 17  # 17:00
 ORA_FINE = 3     # 03:00
 
 # --- File per ricordare l'ultima transazione vista ---
-LAST_TXN_FILE = "last_transaction.json"
+LAST_TXN_FILE = "state/last_transaction.json"
 
 SUMUP_API_URL = "https://api.sumup.com"
 SUMUP_HEADERS = {
@@ -36,7 +37,7 @@ SUMUP_HEADERS = {
 
 
 def e_orario_attivo():
-    """Controlla se siamo tra le 17:00 e le 03:00."""
+    """Controlla se siamo tra le 17:00 e le 03:00 ora italiana."""
     ora = datetime.now(FUSO_ITALIA).hour
     if ORA_INIZIO <= ora <= 23:
         return True
@@ -57,6 +58,7 @@ def carica_ultima_transazione():
 
 def salva_ultima_transazione(txn_id):
     """Salva l'ID dell'ultima transazione notificata."""
+    os.makedirs("state", exist_ok=True)
     with open(LAST_TXN_FILE, "w") as f:
         json.dump({"last_id": txn_id}, f)
 
@@ -96,7 +98,7 @@ def invia_telegram(messaggio):
             timeout=10,
         )
         response.raise_for_status()
-        print(f"[OK] Notifica Telegram inviata")
+        print("[OK] Notifica Telegram inviata")
     except requests.RequestException as e:
         print(f"[ERRORE] Invio Telegram fallito: {e}")
 
@@ -109,7 +111,6 @@ def formatta_messaggio(txn):
     tipo_carta = txn.get("card_type", "Carta")
     codice = txn.get("transaction_code", "")
 
-    # Formatta la data
     try:
         dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         dt_italia = dt.astimezone(FUSO_ITALIA)
@@ -117,7 +118,6 @@ def formatta_messaggio(txn):
     except (ValueError, AttributeError):
         data_formattata = timestamp
 
-    # Simbolo valuta
     simbolo = "€" if valuta == "EUR" else valuta
 
     return (
@@ -129,21 +129,22 @@ def formatta_messaggio(txn):
     )
 
 
-def controlla_nuove_transazioni():
-    """Controlla se ci sono nuove transazioni e notifica."""
+def main():
+    ora_italia = datetime.now(FUSO_ITALIA).strftime("%H:%M")
+    print(f"[INFO] Controllo alle {ora_italia} ora italiana")
+
     ultimo_id = carica_ultima_transazione()
     transazioni = ottieni_transazioni()
 
     if not transazioni:
+        print("[INFO] Nessuna transazione trovata")
         return
 
-    # Se è la prima esecuzione, salva l'ultima transazione senza notificare
     if ultimo_id is None:
         salva_ultima_transazione(transazioni[0]["id"])
         print("[INFO] Prima esecuzione: salvata transazione più recente come riferimento")
         return
 
-    # Trova le transazioni nuove (quelle prima dell'ultimo ID salvato)
     nuove = []
     for txn in transazioni:
         if txn["id"] == ultimo_id:
@@ -151,34 +152,15 @@ def controlla_nuove_transazioni():
         nuove.append(txn)
 
     if not nuove:
+        print("[INFO] Nessuna nuova transazione")
         return
 
-    # Notifica ogni nuova transazione (dalla più vecchia alla più recente)
     for txn in reversed(nuove):
         messaggio = formatta_messaggio(txn)
         invia_telegram(messaggio)
-        time.sleep(1)  # Pausa tra messaggi per non sovraccaricare Telegram
 
-    # Salva la transazione più recente
     salva_ultima_transazione(transazioni[0]["id"])
     print(f"[INFO] Notificate {len(nuove)} nuove transazioni")
-
-
-def main():
-    print("🚀 Avvio monitoraggio pagamenti SumUp → Telegram")
-    print(f"   Orario attivo: {ORA_INIZIO}:00 - {ORA_FINE:02d}:00")
-    print(f"   Polling ogni 60 secondi")
-    print()
-
-    while True:
-        if e_orario_attivo():
-            controlla_nuove_transazioni()
-        else:
-            ora = datetime.now(FUSO_ITALIA).strftime("%H:%M")
-            print(f"[PAUSA] {ora} - fuori orario, prossimo controllo tra 5 minuti")
-            time.sleep(240)  # Dorme 4 minuti extra (+ il sleep finale di 60 = 5 min)
-
-        time.sleep(60)
 
 
 if __name__ == "__main__":
