@@ -2,9 +2,8 @@ name: Controlla pagamenti SumUp
 
 on:
   schedule:
-    # Ogni 1 minuto, dalle 17:00 alle 3:00 di notte (lo script controlla internamente se è orario attivo)
     - cron: '*/1 * * * *'
-  workflow_dispatch: # Permette di avviarlo manualmente per test
+  workflow_dispatch:
 
 jobs:
   controlla:
@@ -23,10 +22,12 @@ jobs:
         run: pip install requests
 
       - name: Ripristina stato precedente
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: state
-          key: sumup-state
+          key: sumup-state-${{ github.run_id }}
+          restore-keys: |
+            sumup-state-
 
       - name: Controlla nuove transazioni
         env:
@@ -34,3 +35,10 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python sumup_telegram.py
+
+      - name: Salva stato aggiornato
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: state
+          key: sumup-state-${{ github.run_id }}
