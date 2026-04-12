@@ -1,14 +1,12 @@
 """
 Notifiche Pagamenti SumUp → Telegram
 Versione per GitHub Actions: esegue un singolo controllo e termina.
-Lo stato (ultima transazione vista) è salvato in un file che viene
-persistito tra le esecuzioni tramite GitHub Actions cache.
+Lo stato (ultima transazione vista) è salvato direttamente nel repository.
 
 Attivo dalle 17:00 alle 03:00 ora italiana.
 """
 
 import os
-import sys
 import json
 import requests
 from datetime import datetime
@@ -27,7 +25,7 @@ ORA_INIZIO = 17  # 17:00
 ORA_FINE = 3     # 03:00
 
 # --- File per ricordare l'ultima transazione vista ---
-LAST_TXN_FILE = "state/last_transaction.json"
+LAST_TXN_FILE = "last_transaction.json"
 
 SUMUP_API_URL = "https://api.sumup.com"
 SUMUP_HEADERS = {
@@ -58,7 +56,6 @@ def carica_ultima_transazione():
 
 def salva_ultima_transazione(txn_id):
     """Salva l'ID dell'ultima transazione notificata."""
-    os.makedirs("state", exist_ok=True)
     with open(LAST_TXN_FILE, "w") as f:
         json.dump({"last_id": txn_id}, f)
 
@@ -132,10 +129,11 @@ def formatta_messaggio(txn):
 def main():
     ora_italia = datetime.now(FUSO_ITALIA).strftime("%H:%M")
     print(f"[INFO] Controllo alle {ora_italia} ora italiana")
+
     if not e_orario_attivo():
         print(f"[PAUSA] Fuori orario (attivo {ORA_INIZIO}:00 - {ORA_FINE:02d}:00)")
         return
-    
+
     ultimo_id = carica_ultima_transazione()
     transazioni = ottieni_transazioni()
 
