@@ -2,7 +2,8 @@ name: Controlla pagamenti SumUp
 
 on:
   schedule:
-    - cron: '*/1 * * * *'
+    # Ogni 5 minuti, dalle 17:00 alle 03:00 ora italiana
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -21,14 +22,6 @@ jobs:
       - name: Installa dipendenze
         run: pip install requests
 
-      - name: Ripristina stato precedente
-        uses: actions/cache/restore@v4
-        with:
-          path: state
-          key: sumup-state-${{ github.run_id }}
-          restore-keys: |
-            sumup-state-
-
       - name: Controlla nuove transazioni
         env:
           SUMUP_API_KEY: ${{ secrets.SUMUP_API_KEY }}
@@ -36,9 +29,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python sumup_telegram.py
 
-      - name: Salva stato aggiornato
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: state
-          key: sumup-state-${{ github.run_id }}
+      - name: Salva stato nel repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_transaction.json
+          git diff --staged --quiet || git commit -m "aggiorna ultimo pagamento"
+          git push
