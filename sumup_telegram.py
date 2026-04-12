@@ -21,7 +21,7 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 # --- Orari di attività ---
-ORA_INIZIO = 17  # 17:00
+ORA_INIZIO = 9  # 9:00
 ORA_FINE = 3     # 03:00
 
 # --- File per ricordare l'ultima transazione vista ---
